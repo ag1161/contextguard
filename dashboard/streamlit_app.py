@@ -11,7 +11,6 @@ import json
 import os
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -130,19 +129,11 @@ variant_stats = (
 col_chart, col_table = st.columns([2, 1])
 
 with col_chart:
-    fig, ax = plt.subplots(figsize=(8, 4))
-    variant_stats.plot(kind="bar", ax=ax, colormap="Set2", edgecolor="white")
-    ax.set_title("Mean Scores by Prompt Variant")
-    ax.set_xlabel("Variant")
-    ax.set_ylabel("Score (0–1)")
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=30, ha="right")
-    ax.legend(loc="upper right", fontsize=8)
-    ax.set_ylim(0, 1)
-    plt.tight_layout()
-    st.pyplot(fig)
+    st.bar_chart(variant_stats)
 
 with col_table:
-    st.dataframe(variant_stats, use_container_width=True)
+    # use width="stretch" — replaces deprecated use_container_width=True
+    st.dataframe(variant_stats, width="stretch")
 
 st.divider()
 
@@ -155,7 +146,7 @@ q_stats = (
     .unstack(fill_value=0)
     .round(3)
 )
-st.dataframe(q_stats, use_container_width=True)
+st.dataframe(q_stats, width="stretch")
 
 st.divider()
 
@@ -169,7 +160,7 @@ display_cols = [
 ]
 display_cols = [c for c in display_cols if c in filtered.columns]
 
-st.dataframe(filtered[display_cols].reset_index(drop=True), use_container_width=True)
+st.dataframe(filtered[display_cols].reset_index(drop=True), width="stretch")
 
 with st.expander("Show full prompt/response pairs"):
     for _, row in filtered.iterrows():
