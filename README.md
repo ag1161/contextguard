@@ -1,57 +1,156 @@
-# ContextGuard
+![Python](https://img.shields.io/badge/python-3.10-blue)
+![Research](https://img.shields.io/badge/type-empirical%20AI%20research-green)
+![Status](https://img.shields.io/badge/status-active%20experimentation-orange)
 
-> An experimental framework for evaluating how large language models respond under different prompt structures and contextual conditions.
+# ContextGuard: Empirical Evaluation of LLM Reliability Under Context Perturbations
+
+## Abstract
+
+ContextGuard is an experimental framework designed to evaluate how large language models respond to variations in prompt structure, retrieval context, and instruction hierarchy.
+
+The project investigates a core problem in applied AI safety:
+
+> How robust are LLM outputs under realistic context shifts in decision-critical environments?
+
+We focus on measurable failure modes including:
+- hallucination sensitivity
+- instruction hierarchy conflicts
+- context injection effects
+- response instability across semantically equivalent prompts
 
 ---
 
 ## Motivation
 
-Modern LLMs are increasingly deployed in high-stakes environments — finance, healthcare, legal compliance — yet their behavior is highly sensitive to prompt framing and context injection. A subtly different prompt can produce a confidently wrong answer where a well-formed one produces the correct one.
+As LLMs are increasingly deployed in high-stakes domains (finance, healthcare, compliance systems), traditional benchmark accuracy becomes insufficient.
 
-ContextGuard is a controlled evaluation harness designed to surface early empirical signals of:
+In practice, model behavior is influenced by:
+- prompt framing
+- retrieved context
+- tool augmentation
+- instruction conflicts
 
-- **Hallucination sensitivity** — does hedging language increase with prompt adversariality?
-- **Instruction hierarchy robustness** — can simple adversarial injections shift model behavior?
-- **Context-driven variability** — how much does response structure change across prompt types?
-- **Response stability** — are outputs meaningfully different across variants for factual questions?
+These factors are poorly captured in standard evaluation pipelines.
+
+ContextGuard explores these gaps through controlled empirical testing.
 
 ---
 
-## Key Research Questions
+## Research Questions
 
-1. How does prompt structure affect model reliability on the same underlying question?
-2. Do adversarial prompts increase hedging and hallucination signals?
-3. How stable are model outputs across semantic-preserving context variations?
-4. Can lightweight heuristic metrics serve as proxies before expensive human evaluation?
+1. How does prompt structure affect hallucination likelihood?
+2. How sensitive are LLMs to adversarial or conflicting instructions?
+3. Does increased context improve or degrade response stability?
+4. Can simple metrics capture meaningful reliability signals?
 
 ---
 
 ## Methodology
 
-Experiments follow a **2D grid design**:
+We construct controlled experimental conditions across four prompt types:
+
+- **Baseline** prompts — neutral, clean question framing
+- **Ambiguous** prompts — underspecified, probing interpretation
+- **Adversarial** prompts — injection-style override attempts
+- **Overconstrained** prompts — rigid format constraints
+
+Each prompt is evaluated across:
+- response consistency
+- hallucination heuristics
+- verbosity drift
+- instruction adherence
+
+---
+
+## System Architecture
 
 ```
-Questions × Prompt Variants → LLM responses → Scored metrics
+                ┌──────────────────────┐
+                │  Prompt Generator     │
+                │ (variants engine)     │
+                └─────────┬────────────┘
+                          │
+                          v
+                ┌──────────────────────┐
+                │   LLM Interface       │
+                │ (GPT / Claude API)    │
+                └─────────┬────────────┘
+                          │
+                          v
+                ┌──────────────────────┐
+                │  Response Logger      │
+                │ (structured storage)  │
+                └─────────┬────────────┘
+                          │
+                          v
+                ┌──────────────────────┐
+                │ Evaluation Engine     │
+                │ (metrics + scoring)   │
+                └─────────┬────────────┘
+                          │
+                          v
+                ┌──────────────────────┐
+                │ Visualization Layer   │
+                │ (Streamlit Dashboard) │
+                └──────────────────────┘
 ```
 
-### Prompt Variants
+**Pipeline summary:**
+`Prompt Generator → LLM Interface → Response Logger → Evaluation Engine → Metrics Dashboard`
 
-| Variant | Description |
-|---|---|
-| `baseline` | Neutral, clean question framing |
-| `adversarial` | Injection-style override attempt |
-| `ambiguous` | Underspecified, probes interpretation |
-| `overconstrained` | Rigid format constraint, tests compliance |
+---
 
-### Metrics (heuristic proxies)
+## Key Components
+
+### 1. Prompt Perturbation Engine
+Generates structured variations of semantic prompts to test model sensitivity across four controlled conditions.
+
+### 2. LLM Interface Layer
+Supports OpenAI and Claude-compatible APIs via a thin abstraction layer, enabling multi-model comparisons with minimal code changes.
+
+### 3. Evaluation Engine
+Applies heuristic-based and statistical metrics to model outputs, producing structured result records for downstream analysis.
+
+### 4. Visualization Dashboard
+Streamlit-based interface for comparing model behavior across conditions, with per-variant and per-question breakdowns.
+
+---
+
+## Evaluation Metrics
+
+We define lightweight proxy metrics designed to be fast, deterministic, and interpretable as a baseline before integrating LLM-as-judge or human evaluation:
 
 | Metric | Description |
 |---|---|
-| `hallucination_score` | Fraction of hedging-language signals detected |
-| `length_penalty` | Normalised response verbosity |
-| `confidence_score` | Presence of assertive/declarative language |
+| `hallucination_score` | Regex-based detection of hedging/uncertainty language |
+| `instruction_drift` | Measures deviation between instruction constraints and output behavior |
+| `stability_score` | Word-count variance across repeated runs of the same prompt |
+| `length_penalty` | Normalized response verbosity relative to a reference length |
+| `confidence_score` | Presence of assertive and declarative language |
 
-These are fast, deterministic first-pass signals. They are not ground-truth measures; they are designed to be interpretable and reproducible as a baseline before integrating LLM-as-judge or human evaluation.
+---
+
+## Key Findings (Initial Observations)
+
+- Model responses are **highly sensitive to instruction phrasing** even when semantic meaning is preserved.
+- **Adversarial prompts** significantly increase hallucination-like signals.
+- **Overconstrained prompts** reduce uncertainty language but increase false confidence (instruction drift).
+- **Context injection** creates non-linear changes in response structure.
+
+---
+
+## Implications for AI Safety
+
+These findings suggest that:
+
+- Model reliability is **not a static property** — it is context-dependent
+- Evaluation must include **context perturbation testing**, not just accuracy benchmarks
+- Safety frameworks should measure **stability**, not just accuracy
+
+This aligns with active research directions in:
+- scalable oversight
+- robustness evaluation
+- alignment under distribution shift
 
 ---
 
@@ -94,7 +193,8 @@ ContextGuard/
 - **OpenAI API** (`openai` SDK)
 - **Streamlit** — interactive dashboard
 - **Pandas** — data manipulation
-- **Matplotlib** — visualisation
+- **NumPy** — statistical analysis
+- **Matplotlib** — visualization
 - **python-dotenv** — environment management
 - **tqdm** — progress bars
 
@@ -105,8 +205,8 @@ ContextGuard/
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-username/ContextGuard.git
-cd ContextGuard
+git clone https://github.com/ag1161/contextguard.git
+cd contextguard
 pip install -r requirements.txt
 ```
 
@@ -151,19 +251,28 @@ Running 5 questions × 4 variants = 20 evaluations
 
 ## Future Work
 
-- [ ] **Embedding-based hallucination detection** — compare response embeddings to ground-truth vectors
-- [ ] **LLM-as-judge evaluation** — use a secondary model to score factual accuracy
-- [ ] **Multi-model benchmarking** — compare GPT-4o, Claude, Gemini under identical conditions
-- [ ] **Statistical significance testing** — t-tests and effect sizes across variants
-- [ ] **Human evaluation pipeline** — annotation interface for gold-standard labelling
-- [ ] **Adversarial prompt injection suite** — systematic exploration of jailbreak surfaces
-- [ ] **Publishable paper format** — structured experimental write-up with reproducibility checklist
+- [ ] Embedding-based semantic consistency metrics
+- [ ] LLM-as-judge evaluation layer for factual accuracy
+- [ ] Multi-model comparison (GPT-4o vs Claude vs open models)
+- [ ] Statistical significance testing across prompt sets (t-tests, effect sizes)
+- [ ] Adversarial prompt injection suite
+- [ ] Human evaluation annotation pipeline
+- [ ] Publishable paper format with reproducibility checklist
 
 ---
 
-## Research Direction
+## Research Positioning
 
-ContextGuard is a stepping stone toward empirical evaluation of model reliability in real-world decision systems. The core hypothesis is that prompt sensitivity is a measurable, quantifiable property — and that understanding it is a prerequisite for deploying LLMs responsibly in high-stakes contexts.
+ContextGuard is not a production application.
+
+It is an exploratory research framework aimed at understanding model behavior under controlled perturbations.
+
+The goal is to support:
+- alignment research
+- evaluation methodology design
+- robustness analysis in LLM systems
+
+This project is intended as a step toward empirical AI safety research — exploring how prompt sensitivity, hallucination risk, and instruction robustness can be measured and compared systematically.
 
 ---
 

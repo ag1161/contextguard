@@ -21,7 +21,10 @@ st.set_page_config(
 )
 
 st.title("🧠 ContextGuard: LLM Reliability Dashboard")
-st.caption("Evaluating hallucination sensitivity, context robustness, and response stability across prompt variants.")
+st.caption(
+    "Empirical evaluation of hallucination sensitivity, instruction drift, "
+    "and response stability across controlled prompt perturbations."
+)
 
 # ── Load data ──────────────────────────────────────────────────────────────────
 RESULTS_PATH = os.path.join(
@@ -30,16 +33,21 @@ RESULTS_PATH = os.path.join(
     "sample_results.json",
 )
 
+
 @st.cache_data
 def load_results(path: str) -> pd.DataFrame:
     with open(path, "r") as f:
         data = json.load(f)
     return pd.DataFrame(data)
 
+
 try:
     df = load_results(RESULTS_PATH)
 except FileNotFoundError:
-    st.error(f"Results file not found at `{RESULTS_PATH}`. Run `python experiments/run_experiment.py` first.")
+    st.error(
+        f"Results file not found at `{RESULTS_PATH}`. "
+        "Run `python experiments/run_experiment.py` first."
+    )
     st.stop()
 
 # ── Sidebar filters ────────────────────────────────────────────────────────────
@@ -52,26 +60,69 @@ questions = sorted(df["question"].unique().tolist())
 selected_questions = st.sidebar.multiselect("Questions", questions, default=questions)
 
 filtered = df[
-    df["variant"].isin(selected_variants) &
-    df["question"].isin(selected_questions)
+    df["variant"].isin(selected_variants)
+    & df["question"].isin(selected_questions)
 ]
+
+# ── Research Insights ──────────────────────────────────────────────────────────
+st.subheader("🔬 Research Insights")
+st.write(
+    """
+    This dashboard visualizes how model behavior changes under controlled prompt perturbations.
+    Each metric is a lightweight proxy signal for a distinct reliability dimension:
+    - **Hallucination Score** — frequency of hedging/uncertainty language in responses
+    - **Instruction Drift** — deviation between stated constraints and actual output behavior
+    - **Length Penalty** — normalized verbosity relative to a reference length
+    - **Confidence Score** — presence of assertive/declarative language
+    """
+)
+
+st.divider()
 
 # ── Top-level KPIs ─────────────────────────────────────────────────────────────
 st.subheader("📊 Aggregate Metrics")
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Evaluations", len(filtered))
-col2.metric("Avg Hallucination Score", round(filtered["hallucination_score"].mean(), 3))
-col3.metric("Avg Length Penalty", round(filtered["length_penalty"].mean(), 3))
-col4.metric("Avg Confidence Score", round(filtered["confidence_score"].mean(), 3))
+metric_cols = ["hallucination_score", "instruction_drift", "length_penalty", "confidence_score"]
+available_metrics = [m for m in metric_cols if m in filtered.columns]
+
+cols = st.columns(len(available_metrics) + 1)
+cols[0].metric("Evaluations", len(filtered))
+for i, m in enumerate(available_metrics):
+    cols[i + 1].metric(
+        m.replace("_", " ").title(),
+        round(filtered[m].mean(), 3),
+    )
 
 st.divider()
 
-# ── Variant comparison ─────────────────────────────────────────────────────────
-st.subheader("📈 Variant Comparison")
+# ── Hallucination Distribution ─────────────────────────────────────────────────
+st.subheader("🧪 Hallucination Distribution by Variant")
+st.caption(
+    "Higher scores indicate more hedging/uncertainty language — a proxy for "
+    "hallucination-prone responses."
+)
+
+halluc_data = filtered.groupby("variant")["hallucination_score"].mean().sort_values(ascending=False)
+st.bar_chart(halluc_data)
+
+st.divider()
+
+# ── Instruction Drift ──────────────────────────────────────────────────────────
+if "instruction_drift" in filtered.columns:
+    st.subheader("⚠️ Instruction Drift by Variant")
+    st.caption(
+        "Measures how often the model violates explicit constraints in the prompt "
+        "(e.g., answering in multiple sentences when told to use exactly one)."
+    )
+    drift_data = filtered.groupby("variant")["instruction_drift"].mean().sort_values(ascending=False)
+    st.bar_chart(drift_data)
+    st.divider()
+
+# ── Full variant comparison ────────────────────────────────────────────────────
+st.subheader("📈 Multi-Metric Variant Comparison")
 
 variant_stats = (
-    filtered.groupby("variant")[["hallucination_score", "length_penalty", "confidence_score"]]
+    filtered.groupby("variant")[available_metrics]
     .mean()
     .round(4)
 )
@@ -111,11 +162,18 @@ st.divider()
 # ── Raw results ────────────────────────────────────────────────────────────────
 st.subheader("📋 Raw Results")
 
-display_cols = ["question", "variant", "hallucination_score", "length_penalty", "confidence_score", "word_count"]
+display_cols = [
+    "question", "variant",
+    "hallucination_score", "instruction_drift",
+    "length_penalty", "confidence_score", "word_count",
+]
+display_cols = [c for c in display_cols if c in filtered.columns]
+
 st.dataframe(filtered[display_cols].reset_index(drop=True), use_container_width=True)
 
-with st.expander("Show full responses"):
+with st.expander("Show full prompt/response pairs"):
     for _, row in filtered.iterrows():
         st.markdown(f"**[{row['variant']}]** *{row['question']}*")
+        st.code(row["prompt"], language="text")
         st.write(row["response"])
         st.divider()

@@ -5,7 +5,12 @@ Each response is scored across multiple metrics and returned as a
 structured result dict that can be serialised to JSON.
 """
 
-from app.metrics import hallucination_score, length_penalty, confidence_score
+from app.metrics import (
+    hallucination_score,
+    instruction_drift,
+    length_penalty,
+    confidence_score,
+)
 from app.utils import timestamp
 
 
@@ -34,6 +39,7 @@ def evaluate_response(
         "prompt": prompt,
         "response": response,
         "hallucination_score": hallucination_score(response),
+        "instruction_drift": instruction_drift(prompt, response),
         "length_penalty": length_penalty(response),
         "confidence_score": confidence_score(response),
         "word_count": len(response.split()),
@@ -58,6 +64,9 @@ def aggregate_results(results: list[dict]) -> dict:
         "total_evaluations": n,
         "avg_hallucination_score": round(
             sum(r["hallucination_score"] for r in results) / n, 4
+        ),
+        "avg_instruction_drift": round(
+            sum(r["instruction_drift"] for r in results) / n, 4
         ),
         "avg_length_penalty": round(
             sum(r["length_penalty"] for r in results) / n, 4
