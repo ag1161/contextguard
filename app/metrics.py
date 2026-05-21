@@ -75,7 +75,7 @@ def hallucination_score(response: str) -> float:
     """
     lower = response.lower()
     hits = sum(
-        bool(re.search(rf"\b{re.escape(m)}\b", lower))
+        bool(re.search(rf"\b{re.escape(m.lower())}\b", lower))
         for m in UNCERTAINTY_MARKERS
     )
     return round(min(hits / len(UNCERTAINTY_MARKERS), 1.0), 4)
